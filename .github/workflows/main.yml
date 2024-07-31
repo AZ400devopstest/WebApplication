@@ -3,17 +3,27 @@ name: Example Workflow
 on:
   workflow_dispatch:
     inputs:
-      example_input:
-        description: 'An example input parameter'
+      environment:
+        description: 'Deployment environment'
         required: true
-        default: 'default_value'
-      another_input:
-        description: 'Another input parameter'
-        required: false
-        default: 'optional_value'
+        type: choice
+        options:
+          - staging
+          - production
+          - development
+        default: staging
+      version:
+        description: 'Version to deploy'
+        required: true
+        type: choice
+        options:
+          - v1.0
+          - v1.1
+          - v2.0
+        default: v1.0
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -21,5 +31,6 @@ jobs:
 
       - name: Print input parameters
         run: |
-          echo "Example input: ${{ github.event.inputs.example_input }}"
-          echo "Another input: ${{ github.event.inputs.another_input }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Version: ${{ github.event.inputs.version }}"
+          # Add your deployment commands here
