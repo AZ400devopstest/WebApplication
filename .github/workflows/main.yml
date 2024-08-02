@@ -1,36 +1,70 @@
-name: Example Workflow
+name: Build and Push Docker Image
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
-          - development
-        default: staging
-      version:
-        description: 'Version to deploy'
-        required: true
-        type: choice
-        options:
-          - v1.0
-          - v1.1
-          - v2.0
-        default: v1.0
+  push:
+    branches:
+      - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Print input parameters
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Set up Docker Hub credentials
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Get current version from file
+        id: get-version
         run: |
-          echo "Environment: ${{ github.event.inputs.environment }}"
-          echo "Version: ${{ github.event.inputs.version }}"
-          # Add your deployment commands here
+          # Check if version.txt exists and read the version
+          if [ -f version.txt ]; then
+            current_version=$(cat version.txt)
+          else
+            current_version="1.0.0"
+          fi
+
+          echo "Current version: $current_version"
+          echo "current_version=$current_version" >> $GITHUB_ENV
+
+      - name: Determine new image version
+        id: version
+        run: |
+          # Fetch the latest image tags from Docker Hub
+          latest_tag=$(curl -s -H "Authorization: token ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" \
+                                "https://hub.docker.com/v2/repositories/yourusername/your-image-name/tags/?page_size=100" \
+                                | jq -r '.results[].name' | sort -V | tail -n 1)
+
+          # Extract current version parts
+          IFS='.' read -r major minor patch <<< "${{ env.current_version }}"
+
+          # Increment the patch version
+          new_patch=$((patch + 1))
+          new_version="$major.$minor.$new_patch"
+
+          echo "new_version=$new_version" >> $GITHUB_ENV
+
+      - name: Build Docker image
+        run: |
+          docker build -t yourusername/your-image-name:${{ env.new_version }} .
+
+      - name: Push Docker image
+        run: |
+          docker push yourusername/your-image-name:${{ env.new_version }}
+
+      - name: Update version file
+        run: |
+          echo "${{ env.new_version }}" > version.txt
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add version.txt
+          git commit -m "Update version to ${{ env.new_version }}"
+          git push
