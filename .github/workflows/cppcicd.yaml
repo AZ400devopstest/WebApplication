@@ -1,0 +1,26 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "dev","cicd-1" ]
+
+jobs:
+  build:
+
+    runs-on: debian-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: build CAF
+      run: |
+        pwd;
+        ls -l;
+        git clone https://github.com/actor-framework/actor-framework.git;
+        cd actor-framework;
+        ./configure;
+        cd build;
+        make;
+        ls -l
+        sudo make install;
+        cd ../..;
+        pwd;
