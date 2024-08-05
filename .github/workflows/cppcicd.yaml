@@ -1,8 +1,7 @@
 name: C/C++ CI
 
 on:
-  push:
-    branches: [ "dev","cicd-1" ]
+  workflow_dispatch:
 
 jobs:
   build:
